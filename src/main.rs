@@ -32,7 +32,7 @@ enum Commands {
         #[arg(long)]
         service: Option<String>,
         /// Compact mode: show only binary name instead of full path
-        #[arg(short, long)]
+        #[arg(short, long, conflicts_with = "json")]
         compact: bool,
         /// Output as JSON array
         #[arg(long)]
