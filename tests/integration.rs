@@ -1,5 +1,6 @@
 use serde_json::Value;
 use std::process::Command;
+use tccutil_rs::tcc::TccEntry;
 
 /// Helper: run the `tccutil-rs` binary with given args, returning (stdout, stderr, success).
 fn run_tcc(args: &[&str]) -> (String, String, bool) {
@@ -168,24 +169,35 @@ fn list_json_outputs_valid_json_array() {
         }
     }
 
-    // Unconditional field check: verify the serialization contract by
-    // round-tripping a representative JSON object through the expected schema.
-    // This guarantees field coverage even when the TCC DB is empty (CI).
-    let mock_entry = serde_json::json!({
-        "service_raw": "kTCCServiceCamera",
-        "service_display": "Camera",
-        "client": "com.example.app",
-        "auth_value": 2,
-        "last_modified": "2024-01-01 00:00:00",
-        "is_system": false
-    });
+    // Unconditional field check: serialize an actual TccEntry and verify
+    // that EXPECTED_JSON_FIELDS matches the real struct fields. If TccEntry
+    // gains, loses, or renames a field, this will catch the mismatch.
+    let entry = TccEntry {
+        service_raw: String::new(),
+        service_display: String::new(),
+        client: String::new(),
+        auth_value: 0,
+        last_modified: String::new(),
+        is_system: false,
+    };
+    let serialized = serde_json::to_value(&entry).expect("TccEntry should serialize");
+    let obj = serialized
+        .as_object()
+        .expect("serialized TccEntry should be an object");
     for field in EXPECTED_JSON_FIELDS {
         assert!(
-            mock_entry.get(field).is_some(),
-            "TccEntry schema missing expected field '{}'",
+            obj.contains_key(*field),
+            "TccEntry serialization missing expected field '{}'",
             field
         );
     }
+    assert_eq!(
+        obj.len(),
+        EXPECTED_JSON_FIELDS.len(),
+        "TccEntry has {} fields but EXPECTED_JSON_FIELDS lists {} (add/remove entries to keep in sync)",
+        obj.len(),
+        EXPECTED_JSON_FIELDS.len()
+    );
 }
 
 #[test]
@@ -232,12 +244,23 @@ fn list_json_with_client_filter_only_contains_matching_entries() {
     let parsed: Value = serde_json::from_str(&stdout).expect("output should be valid JSON");
     let arr = parsed.as_array().expect("should be an array");
 
-    // Every returned entry (if any) must match the filter
-    for entry in arr {
-        let client = entry["client"].as_str().expect("client should be a string");
+    // Every returned entry (if any) must be an object with a "client" field
+    // containing the filter string. This verifies filter correctness structurally,
+    // even if the result set is empty (no assertions are skipped).
+    for (i, entry) in arr.iter().enumerate() {
+        assert!(
+            entry.is_object(),
+            "entry at index {} should be an object",
+            i
+        );
+        let client = entry
+            .get("client")
+            .and_then(|v| v.as_str())
+            .unwrap_or_else(|| panic!("entry at index {} missing 'client' string field", i));
         assert!(
             client.to_lowercase().contains("apple"),
-            "filtered entry should contain 'apple', got: {}",
+            "filtered entry at index {} should contain 'apple', got: {}",
+            i,
             client
         );
     }

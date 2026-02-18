@@ -1,5 +1,3 @@
-mod tcc;
-
 #[cfg(test)]
 use clap::CommandFactory;
 #[cfg(test)]
@@ -8,7 +6,9 @@ use clap::{Parser, Subcommand};
 use colored::Colorize;
 use std::process;
 
-use tcc::{DbTarget, SERVICE_MAP, TccDb, TccEntry, auth_value_display, compact_client};
+use tccutil_rs::tcc::{
+    DbTarget, SERVICE_MAP, TccDb, TccEntry, TccError, auth_value_display, compact_client,
+};
 
 #[derive(Parser, Debug)]
 #[command(name = "tccutil-rs", about = "Manage macOS TCC permissions", version)]
@@ -387,7 +387,7 @@ mod tests {
 }
 
 /// Run a TCC command and handle the result uniformly
-fn run_command(result: Result<String, tcc::TccError>) {
+fn run_command(result: Result<String, TccError>) {
     match result {
         Ok(msg) => println!("{}", msg.green()),
         Err(e) => {
@@ -427,11 +427,17 @@ fn main() {
             match db.list(client.as_deref(), service.as_deref()) {
                 Ok(entries) => {
                     if json {
-                        println!(
-                            "{}",
-                            serde_json::to_string_pretty(&entries)
-                                .expect("failed to serialize entries")
-                        );
+                        match serde_json::to_string_pretty(&entries) {
+                            Ok(json_str) => println!("{}", json_str),
+                            Err(e) => {
+                                eprintln!(
+                                    "{}: failed to serialize entries: {}",
+                                    "Error".red().bold(),
+                                    e
+                                );
+                                process::exit(1);
+                            }
+                        }
                     } else {
                         print_entries(&entries, compact);
                     }
