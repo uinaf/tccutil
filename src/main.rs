@@ -34,6 +34,9 @@ enum Commands {
         /// Compact mode: show only binary name instead of full path
         #[arg(short, long)]
         compact: bool,
+        /// Output as JSON array
+        #[arg(long)]
+        json: bool,
     },
     /// Grant a TCC permission (inserts new entry)
     Grant {
@@ -204,10 +207,12 @@ mod tests {
                 client,
                 service,
                 compact,
+                json,
             } => {
                 assert_eq!(client.as_deref(), Some("apple"));
                 assert_eq!(service.as_deref(), Some("Camera"));
                 assert!(!compact);
+                assert!(!json);
             }
             _ => panic!("expected List"),
         }
@@ -218,6 +223,15 @@ mod tests {
         let cli = parse(&["tcc", "list", "-c"]).unwrap();
         match cli.command {
             Commands::List { compact, .. } => assert!(compact),
+            _ => panic!("expected List"),
+        }
+    }
+
+    #[test]
+    fn parse_list_json() {
+        let cli = parse(&["tcc", "list", "--json"]).unwrap();
+        match cli.command {
+            Commands::List { json, .. } => assert!(json),
             _ => panic!("expected List"),
         }
     }
@@ -401,10 +415,21 @@ fn main() {
             client,
             service,
             compact,
+            json,
         } => {
             let db = make_db(target);
             match db.list(client.as_deref(), service.as_deref()) {
-                Ok(entries) => print_entries(&entries, compact),
+                Ok(entries) => {
+                    if json {
+                        println!(
+                            "{}",
+                            serde_json::to_string_pretty(&entries)
+                                .expect("failed to serialize entries")
+                        );
+                    } else {
+                        print_entries(&entries, compact);
+                    }
+                }
                 Err(e) => {
                     eprintln!("{}: {}", "Error".red().bold(), e);
                     process::exit(1);

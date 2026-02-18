@@ -1,3 +1,4 @@
+use serde_json::Value;
 use std::process::Command;
 
 /// Helper: run the `tccutil-rs` binary with given args, returning (stdout, stderr, success).
@@ -128,4 +129,54 @@ fn version_flag_prints_version() {
         stdout.contains("tccutil-rs"),
         "version output should mention tccutil-rs"
     );
+}
+
+// ── tccutil-rs list --json ──────────────────────────────────────────
+
+#[test]
+fn list_json_outputs_valid_json_array() {
+    let (stdout, _stderr, success) = run_tcc(&["--user", "list", "--json"]);
+    assert!(success, "tccutil-rs --user list --json should exit 0");
+
+    let parsed: Value = serde_json::from_str(&stdout).expect("output should be valid JSON");
+    assert!(parsed.is_array(), "JSON output should be an array");
+
+    // If there are entries, verify expected fields exist
+    if let Some(arr) = parsed.as_array() {
+        for entry in arr {
+            assert!(entry.get("service_raw").is_some(), "missing service_raw");
+            assert!(
+                entry.get("service_display").is_some(),
+                "missing service_display"
+            );
+            assert!(entry.get("client").is_some(), "missing client");
+            assert!(entry.get("auth_value").is_some(), "missing auth_value");
+            assert!(
+                entry.get("last_modified").is_some(),
+                "missing last_modified"
+            );
+            assert!(entry.get("is_system").is_some(), "missing is_system");
+        }
+    }
+}
+
+#[test]
+fn list_json_with_client_filter_only_contains_matching_entries() {
+    let (stdout, _stderr, success) = run_tcc(&["--user", "list", "--json", "--client", "apple"]);
+    assert!(
+        success,
+        "tccutil-rs --user list --json --client apple should exit 0"
+    );
+
+    let parsed: Value = serde_json::from_str(&stdout).expect("output should be valid JSON");
+    let arr = parsed.as_array().expect("should be an array");
+
+    for entry in arr {
+        let client = entry["client"].as_str().expect("client should be a string");
+        assert!(
+            client.to_lowercase().contains("apple"),
+            "filtered entry should contain 'apple', got: {}",
+            client
+        );
+    }
 }

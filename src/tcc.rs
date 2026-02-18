@@ -1,5 +1,6 @@
 use chrono::{Local, TimeZone};
 use rusqlite::{Connection, OpenFlags};
+use serde::Serialize;
 use std::collections::HashMap;
 use std::fmt;
 use std::path::{Path, PathBuf};
@@ -109,7 +110,7 @@ impl fmt::Display for TccError {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct TccEntry {
     pub service_raw: String,
     pub service_display: String,
