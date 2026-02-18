@@ -427,11 +427,17 @@ fn main() {
             match db.list(client.as_deref(), service.as_deref()) {
                 Ok(entries) => {
                     if json {
-                        println!(
-                            "{}",
-                            serde_json::to_string_pretty(&entries)
-                                .expect("failed to serialize entries")
-                        );
+                        match serde_json::to_string_pretty(&entries) {
+                            Ok(json_str) => println!("{}", json_str),
+                            Err(e) => {
+                                eprintln!(
+                                    "{}: failed to serialize entries: {}",
+                                    "Error".red().bold(),
+                                    e
+                                );
+                                process::exit(1);
+                            }
+                        }
                     } else {
                         print_entries(&entries, compact);
                     }
