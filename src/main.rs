@@ -237,6 +237,12 @@ mod tests {
     }
 
     #[test]
+    fn parse_list_compact_and_json_conflict() {
+        let err = parse(&["tcc", "list", "--compact", "--json"]).unwrap_err();
+        assert_eq!(err.kind(), ErrorKind::ArgumentConflict);
+    }
+
+    #[test]
     fn parse_services() {
         let cli = parse(&["tcc", "services"]).unwrap();
         assert!(matches!(cli.command, Commands::Services));

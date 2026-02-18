@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::LazyLock;
 
+/// Mapping of internal TCC service keys (e.g. `kTCCServiceCamera`) to human-readable names.
 pub static SERVICE_MAP: LazyLock<HashMap<&'static str, &'static str>> = LazyLock::new(|| {
     let mut m = HashMap::new();
     m.insert("kTCCServiceAccessibility", "Accessibility");
@@ -64,6 +65,7 @@ const KNOWN_DIGESTS: &[&str] = &[
     "f773496775", // Sonoma (alt)
 ];
 
+/// Errors returned by TCC database operations.
 #[derive(Debug)]
 pub enum TccError {
     DbOpen { path: PathBuf, source: String },
@@ -110,6 +112,7 @@ impl fmt::Display for TccError {
     }
 }
 
+/// A single row from the TCC `access` table, enriched with a human-readable service name.
 #[derive(Debug, Serialize)]
 pub struct TccEntry {
     pub service_raw: String,
@@ -120,6 +123,7 @@ pub struct TccEntry {
     pub is_system: bool,
 }
 
+/// Which TCC database(s) to target for reads and writes.
 #[derive(Clone, Copy, PartialEq)]
 pub enum DbTarget {
     /// Use both DBs for reads, system for writes (default)
@@ -128,6 +132,7 @@ pub enum DbTarget {
     User,
 }
 
+/// Handle for reading and writing macOS TCC.db databases.
 pub struct TccDb {
     user_db_path: PathBuf,
     system_db_path: PathBuf,
@@ -135,6 +140,7 @@ pub struct TccDb {
 }
 
 impl TccDb {
+    /// Open the user and system TCC databases for the given target mode.
     pub fn new(target: DbTarget) -> Result<Self, TccError> {
         let home = dirs::home_dir().ok_or(TccError::HomeDirNotFound)?;
         Ok(Self {
@@ -240,6 +246,7 @@ impl TccDb {
         Ok(entries)
     }
 
+    /// List TCC entries, optionally filtered by client and/or service substring.
     pub fn list(
         &self,
         client_filter: Option<&str>,
@@ -282,6 +289,7 @@ impl TccDb {
         Ok(entries)
     }
 
+    /// Resolve a user-supplied service name to the internal `kTCCService*` key.
     pub fn resolve_service_name(&self, input: &str) -> Result<String, TccError> {
         if SERVICE_MAP.contains_key(input) {
             return Ok(input.to_string());
@@ -410,6 +418,7 @@ impl TccDb {
         Ok((conn, warning))
     }
 
+    /// Insert or replace a TCC entry with `auth_value = 2` (granted).
     pub fn grant(&self, service: &str, client: &str) -> Result<String, TccError> {
         let service_key = self.resolve_service_name(service)?;
         self.check_root_for_write(&service_key, "grant", service, client)?;
@@ -443,6 +452,7 @@ impl TccDb {
         ))
     }
 
+    /// Delete a TCC entry for the given service and client.
     pub fn revoke(&self, service: &str, client: &str) -> Result<String, TccError> {
         let service_key = self.resolve_service_name(service)?;
         self.check_root_for_write(&service_key, "revoke", service, client)?;
