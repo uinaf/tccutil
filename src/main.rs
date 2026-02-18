@@ -32,7 +32,7 @@ enum Commands {
         #[arg(long)]
         service: Option<String>,
         /// Compact mode: show only binary name instead of full path
-        #[arg(short, long)]
+        #[arg(short, long, conflicts_with = "json")]
         compact: bool,
         /// Output as JSON array
         #[arg(long)]
@@ -371,6 +371,12 @@ mod tests {
     fn parse_grant_missing_args_is_error() {
         let err = parse(&["tcc", "grant"]).unwrap_err();
         assert_eq!(err.kind(), ErrorKind::MissingRequiredArgument);
+    }
+
+    #[test]
+    fn parse_list_compact_and_json_conflict() {
+        let err = parse(&["tcc", "list", "--compact", "--json"]).unwrap_err();
+        assert_eq!(err.kind(), ErrorKind::ArgumentConflict);
     }
 
     #[test]

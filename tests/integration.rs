@@ -133,31 +133,72 @@ fn version_flag_prints_version() {
 
 // ── tccutil-rs list --json ──────────────────────────────────────────
 
+const EXPECTED_JSON_FIELDS: &[&str] = &[
+    "service_raw",
+    "service_display",
+    "client",
+    "auth_value",
+    "last_modified",
+    "is_system",
+];
+
 #[test]
 fn list_json_outputs_valid_json_array() {
     let (stdout, _stderr, success) = run_tcc(&["--user", "list", "--json"]);
     assert!(success, "tccutil-rs --user list --json should exit 0");
 
+    // Always assert: output is valid JSON and is an array
     let parsed: Value = serde_json::from_str(&stdout).expect("output should be valid JSON");
-    assert!(parsed.is_array(), "JSON output should be an array");
+    let arr = parsed.as_array().expect("JSON output should be an array");
 
-    // If there are entries, verify expected fields exist
-    if let Some(arr) = parsed.as_array() {
-        for entry in arr {
-            assert!(entry.get("service_raw").is_some(), "missing service_raw");
+    // Every element must be an object with the expected fields
+    for (i, entry) in arr.iter().enumerate() {
+        assert!(
+            entry.is_object(),
+            "entry at index {} should be an object",
+            i
+        );
+        for field in EXPECTED_JSON_FIELDS {
             assert!(
-                entry.get("service_display").is_some(),
-                "missing service_display"
+                entry.get(field).is_some(),
+                "entry at index {} missing field '{}'",
+                i,
+                field
             );
-            assert!(entry.get("client").is_some(), "missing client");
-            assert!(entry.get("auth_value").is_some(), "missing auth_value");
-            assert!(
-                entry.get("last_modified").is_some(),
-                "missing last_modified"
-            );
-            assert!(entry.get("is_system").is_some(), "missing is_system");
         }
     }
+}
+
+#[test]
+fn list_json_service_filter_returns_valid_structure() {
+    // Use a service that almost certainly exists (Accessibility is one of the oldest TCC services).
+    // Even if zero rows match, the output must still be a valid JSON array.
+    let (stdout, _stderr, success) =
+        run_tcc(&["--user", "list", "--json", "--service", "Accessibility"]);
+    assert!(success);
+
+    let parsed: Value = serde_json::from_str(&stdout).expect("output should be valid JSON");
+    let arr = parsed.as_array().expect("JSON output should be an array");
+
+    for (i, entry) in arr.iter().enumerate() {
+        assert!(entry.is_object(), "entry {} should be an object", i);
+        assert!(
+            entry.get("service_raw").is_some(),
+            "entry {} missing service_raw",
+            i
+        );
+    }
+}
+
+#[test]
+fn list_compact_and_json_conflict() {
+    let (_stdout, stderr, success) = run_tcc(&["--user", "list", "--compact", "--json"]);
+    assert!(!success, "passing both --compact and --json should fail");
+    assert!(
+        stderr.contains("cannot be used with"),
+        "clap should report argument conflict, got: {}",
+        stderr
+    );
 }
 
 #[test]
