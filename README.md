@@ -34,10 +34,10 @@ scripts/install.sh v0.1.1
 
 ```sh
 # remote run (latest release)
-curl -sSL https://raw.githubusercontent.com/uinaf/tccutil/master/scripts/install.sh | sh
+curl -sSL https://raw.githubusercontent.com/uinaf/tccutil/main/scripts/install.sh | sh
 
 # remote run (specific release)
-curl -sSL https://raw.githubusercontent.com/uinaf/tccutil/master/scripts/install.sh | sh -s -- v0.1.1
+curl -sSL https://raw.githubusercontent.com/uinaf/tccutil/main/scripts/install.sh | sh -s -- v0.1.1
 ```
 
 ### 3) Source build
