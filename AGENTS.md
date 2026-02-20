@@ -17,7 +17,7 @@ Project-specific agent instructions for this repo only.
 - Keep diffs small and targeted.
 - Prefer fixing root causes over patching symptoms.
 - If behavior changes, update tests and docs together.
-- Do not introduce placeholder TODO sections in docs.
+- Do not introduce placeholder sections in docs.
 
 ## Verify
 - cargo fmt\n- cargo clippy -- -D warnings\n- cargo test
