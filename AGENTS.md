@@ -3,22 +3,26 @@
 Project: **tccutil**
 
 ## Scope
-Project-specific agent instructions.
+Project-specific agent instructions for this repo only.
+
+## Start Here
+- Read   -     README.md (human overview)
+  - docs/ARCHITECTURE.md (high-level design)
+  - docs/agents/PLAN.md (current plan)
 
 ## Tech Stack
-- Rust
+- Rust CLI (single static binary)
 
 ## Workflow
-- Read docs/README.md and docs/ARCHITECTURE.md first
-- Keep edits minimal and focused
-- Add/update tests for behavior changes
+- Keep diffs small and targeted.
+- Prefer fixing root causes over patching symptoms.
+- If behavior changes, update tests and docs together.
+- Do not introduce placeholder TODO sections in docs.
 
 ## Verify
-- cargo fmt
-- cargo clippy -- -D warnings
-- cargo test
+- cargo fmt\n- cargo clippy -- -D warnings\n- cargo test
 
-## Notes
-- Keep AGENTS.md under 150 lines
-- Human docs live under docs/
-- Agent working memory lives under docs/agents/
+## Documentation Rules
+- Keep README.md at project root.
+- Keep CLAUDE.md as a symlink to AGENTS.md.
+- Use docs/agents/ for working notes and planning.
