@@ -86,7 +86,13 @@ curl -fsSL "$checksums_url" -o "$tmp_dir/checksums.txt" || error "failed to down
 
 [ -f "$tmp_dir/$BINARY_NAME" ] || error "binary not found in archive"
 
-install -m 0755 "$tmp_dir/$BINARY_NAME" "$INSTALL_PATH"
+install_dir="$(dirname "$INSTALL_PATH")"
+if [ -w "$install_dir" ]; then
+  install -m 0755 "$tmp_dir/$BINARY_NAME" "$INSTALL_PATH"
+else
+  command -v sudo >/dev/null 2>&1 || error "sudo is required to install to $INSTALL_PATH"
+  sudo install -m 0755 "$tmp_dir/$BINARY_NAME" "$INSTALL_PATH"
+fi
 
 printf 'Installed %s to %s\n' "$BINARY_NAME" "$INSTALL_PATH"
 "$INSTALL_PATH" --version

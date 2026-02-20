@@ -15,37 +15,24 @@ macOS tracks privacy permissions (Camera, Microphone, Screen Recording, Accessib
 
 ## Install
 
-### 1) Homebrew
+### Homebrew
 
 ```sh
 brew tap uinaf/tap
 brew install tccutil-rs
 ```
 
-### 2) Direct install
+### Direct install
 
 ```sh
-# from this repo checkout (latest release)
-scripts/install.sh
-
-# specific release
-scripts/install.sh v0.1.1
-```
-
-```sh
-# remote run (latest release)
 curl -sSL https://raw.githubusercontent.com/uinaf/tccutil/main/scripts/install.sh | sh
-
-# remote run (specific release)
-curl -sSL https://raw.githubusercontent.com/uinaf/tccutil/main/scripts/install.sh | sh -s -- v0.1.1
 ```
 
-### 3) Source build
+### Source build
 
 ```sh
 cargo build --release
 install -m 0755 target/release/tccutil-rs /usr/local/bin/tccutil-rs
-tccutil-rs --version
 ```
 
 ### Shell alias (optional)
