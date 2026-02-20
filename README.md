@@ -15,17 +15,40 @@ macOS tracks privacy permissions (Camera, Microphone, Screen Recording, Accessib
 
 ## Install
 
-### One-liner
+### 1) Homebrew
 
 ```sh
-curl -sSL https://raw.githubusercontent.com/uinaf/tccutil/master/install.sh | sh
+brew tap uinaf/tap
+brew install tccutil-rs
 ```
 
-### From source
+### 2) Direct binary download
+
+```sh
+VERSION="v0.1.1"
+ARCH="$(uname -m)"
+case "$ARCH" in
+  arm64) ASSET="tccutil-rs_${VERSION}_darwin-arm64.tar.gz" ;;
+  x86_64) ASSET="tccutil-rs_${VERSION}_darwin-amd64.tar.gz" ;;
+  *) echo "unsupported arch: $ARCH"; exit 1 ;;
+esac
+
+BASE_URL="https://github.com/uinaf/tccutil/releases/download/${VERSION}"
+
+curl -fL "${BASE_URL}/${ASSET}" -o "${ASSET}"
+curl -fL "${BASE_URL}/checksums.txt" -o checksums.txt
+grep "  ${ASSET}$" checksums.txt | shasum -a 256 -c -
+tar -xzf "${ASSET}"
+install -m 0755 tccutil-rs /usr/local/bin/tccutil-rs
+tccutil-rs --version
+```
+
+### 3) Source build
 
 ```sh
 cargo build --release
-cp target/release/tccutil-rs /usr/local/bin/
+install -m 0755 target/release/tccutil-rs /usr/local/bin/tccutil-rs
+tccutil-rs --version
 ```
 
 ### Shell alias (optional)
