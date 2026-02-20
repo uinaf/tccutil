@@ -1,5 +1,5 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/sh
+set -eu
 
 REPO="uinaf/tccutil"
 BINARY_NAME="tccutil-rs"
@@ -27,12 +27,12 @@ error() {
   exit 1
 }
 
-if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+if [ "${1:-}" = "-h" ] || [ "${1:-}" = "--help" ]; then
   usage
   exit 0
 fi
 
-if [[ "$(uname -s)" != "Darwin" ]]; then
+if [ "$(uname -s)" != "Darwin" ]; then
   error "tccutil-rs is macOS-only"
 fi
 
@@ -43,26 +43,19 @@ case "$arch" in
   *) error "unsupported architecture: $arch" ;;
 esac
 
-if ! command -v curl >/dev/null 2>&1; then
-  error "curl is required"
-fi
-if ! command -v shasum >/dev/null 2>&1; then
-  error "shasum is required"
-fi
-if ! command -v tar >/dev/null 2>&1; then
-  error "tar is required"
-fi
+command -v curl >/dev/null 2>&1 || error "curl is required"
+command -v shasum >/dev/null 2>&1 || error "shasum is required"
+command -v tar >/dev/null 2>&1 || error "tar is required"
 
 version_arg="${1:-}"
-if [[ -z "$version_arg" ]]; then
+if [ -z "$version_arg" ]; then
   version="$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
-  [[ -n "$version" ]] || error "failed to resolve latest release version"
+  [ -n "$version" ] || error "failed to resolve latest release version"
 else
-  if [[ "$version_arg" == v* ]]; then
-    version="$version_arg"
-  else
-    version="v${version_arg}"
-  fi
+  case "$version_arg" in
+    v*) version="$version_arg" ;;
+    *) version="v$version_arg" ;;
+  esac
 fi
 
 asset="${BINARY_NAME}_${version}_${platform}.tar.gz"
@@ -74,29 +67,26 @@ tmp_dir="$(mktemp -d)"
 cleanup() {
   rm -rf "$tmp_dir"
 }
-trap cleanup EXIT
+trap cleanup EXIT INT TERM
 
 printf 'Installing %s (%s) from %s\n' "$BINARY_NAME" "$platform" "$version"
 
-curl -fsSL "$asset_url" -o "${tmp_dir}/${asset}"
-curl -fsSL "$checksums_url" -o "${tmp_dir}/checksums.txt"
+curl -fsSL "$asset_url" -o "$tmp_dir/$asset" || error "failed to download asset: $asset_url"
+curl -fsSL "$checksums_url" -o "$tmp_dir/checksums.txt" || error "failed to download checksums: $checksums_url"
 
-expected_sha="$(grep "  ${asset}$" "${tmp_dir}/checksums.txt" | awk '{print $1}')"
-[[ -n "$expected_sha" ]] || error "checksum not found for ${asset}"
+(
+  cd "$tmp_dir"
+  grep "  ${asset}$" checksums.txt | shasum -a 256 -c - >/dev/null
+) || error "checksum verification failed"
 
-actual_sha="$(shasum -a 256 "${tmp_dir}/${asset}" | awk '{print $1}')"
-if [[ "$expected_sha" != "$actual_sha" ]]; then
-  error "sha256 verification failed for ${asset}"
-fi
+(
+  cd "$tmp_dir"
+  tar -xzf "$asset"
+)
 
-tar -xzf "${tmp_dir}/${asset}" -C "$tmp_dir"
-[[ -f "${tmp_dir}/${BINARY_NAME}" ]] || error "archive missing ${BINARY_NAME}"
+[ -f "$tmp_dir/$BINARY_NAME" ] || error "binary not found in archive"
 
-if [[ -w "$(dirname "$INSTALL_PATH")" ]]; then
-  install -m 0755 "${tmp_dir}/${BINARY_NAME}" "$INSTALL_PATH"
-else
-  sudo install -m 0755 "${tmp_dir}/${BINARY_NAME}" "$INSTALL_PATH"
-fi
+install -m 0755 "$tmp_dir/$BINARY_NAME" "$INSTALL_PATH"
 
-printf 'Installed: %s\n' "$INSTALL_PATH"
+printf 'Installed %s to %s\n' "$BINARY_NAME" "$INSTALL_PATH"
 "$INSTALL_PATH" --version
