@@ -22,25 +22,22 @@ brew tap uinaf/tap
 brew install tccutil-rs
 ```
 
-### 2) Direct binary download
+### 2) Direct install
 
 ```sh
-VERSION="v0.1.1"
-ARCH="$(uname -m)"
-case "$ARCH" in
-  arm64) ASSET="tccutil-rs_${VERSION}_darwin-arm64.tar.gz" ;;
-  x86_64) ASSET="tccutil-rs_${VERSION}_darwin-amd64.tar.gz" ;;
-  *) echo "unsupported arch: $ARCH"; exit 1 ;;
-esac
+# from this repo checkout (latest release)
+scripts/install.sh
 
-BASE_URL="https://github.com/uinaf/tccutil/releases/download/${VERSION}"
+# specific release
+scripts/install.sh v0.1.1
+```
 
-curl -fL "${BASE_URL}/${ASSET}" -o "${ASSET}"
-curl -fL "${BASE_URL}/checksums.txt" -o checksums.txt
-grep "  ${ASSET}$" checksums.txt | shasum -a 256 -c -
-tar -xzf "${ASSET}"
-install -m 0755 tccutil-rs /usr/local/bin/tccutil-rs
-tccutil-rs --version
+```sh
+# remote run (latest release)
+curl -fsSL https://raw.githubusercontent.com/uinaf/tccutil/main/scripts/install.sh | bash
+
+# remote run (specific release)
+curl -fsSL https://raw.githubusercontent.com/uinaf/tccutil/main/scripts/install.sh | bash -s -- v0.1.1
 ```
 
 ### 3) Source build
