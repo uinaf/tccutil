@@ -1,3 +1,5 @@
+![tccutil-rs — macOS TCC.db management utility.](https://uinaf.dev/og/banner/tccutil-rs.png)
+
 # tccutil
 
 A replacement for Apple's `/usr/bin/tccutil` and [jacobsalmela/tccutil.py](https://github.com/jacobsalmela/tccutil). Zero runtime dependencies, single static binary.
