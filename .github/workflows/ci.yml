@@ -105,6 +105,21 @@ jobs:
           GH_TOKEN: ${{ steps.release-bot.outputs.token }}
         run: gh auth setup-git
 
+      # GitHub links bot commits when the noreply email uses `{user-id}+{slug}[bot]@…`.
+      - name: Resolve release bot identity
+        id: release-bot-identity
+        env:
+          GH_TOKEN: ${{ steps.release-bot.outputs.token }}
+          APP_SLUG: ${{ steps.release-bot.outputs.app-slug }}
+        run: |
+          set -euo pipefail
+          user_id="$(gh api "/users/${APP_SLUG}[bot]" --jq .id)"
+          if [[ ! "$user_id" =~ ^[0-9]+$ ]]; then
+            echo "failed to resolve numeric bot user id for ${APP_SLUG}[bot]" >&2
+            exit 1
+          fi
+          echo "user-id=${user_id}" >> "$GITHUB_OUTPUT"
+
       - name: Install Rust toolchain (from rust-toolchain.toml + darwin cross-compile targets)
         # `rustup show` installs the channel pinned in rust-toolchain.toml
         # from that file. The `target add` calls then attach the cross-compile
@@ -137,9 +152,9 @@ jobs:
           GITHUB_TOKEN: ${{ steps.release-bot.outputs.token }}
           GH_TOKEN: ${{ steps.release-bot.outputs.token }}
           GIT_AUTHOR_NAME: ${{ steps.release-bot.outputs.app-slug }}[bot]
-          GIT_AUTHOR_EMAIL: 312581908+${{ steps.release-bot.outputs.app-slug }}[bot]@users.noreply.github.com
+          GIT_AUTHOR_EMAIL: ${{ steps.release-bot-identity.outputs.user-id }}+${{ steps.release-bot.outputs.app-slug }}[bot]@users.noreply.github.com
           GIT_COMMITTER_NAME: ${{ steps.release-bot.outputs.app-slug }}[bot]
-          GIT_COMMITTER_EMAIL: 312581908+${{ steps.release-bot.outputs.app-slug }}[bot]@users.noreply.github.com
+          GIT_COMMITTER_EMAIL: ${{ steps.release-bot-identity.outputs.user-id }}+${{ steps.release-bot.outputs.app-slug }}[bot]@users.noreply.github.com
 
       - name: Build dual-arch macOS binaries
         if: steps.release.outputs.new_release_published == 'true'
@@ -211,6 +226,20 @@ jobs:
             homebrew-tap
           permission-contents: write
 
+      - name: Resolve release bot identity
+        id: release-bot-identity
+        env:
+          GH_TOKEN: ${{ steps.release-bot.outputs.token }}
+          APP_SLUG: ${{ steps.release-bot.outputs.app-slug }}
+        run: |
+          set -euo pipefail
+          user_id="$(gh api "/users/${APP_SLUG}[bot]" --jq .id)"
+          if [[ ! "$user_id" =~ ^[0-9]+$ ]]; then
+            echo "failed to resolve numeric bot user id for ${APP_SLUG}[bot]" >&2
+            exit 1
+          fi
+          echo "user-id=${user_id}" >> "$GITHUB_OUTPUT"
+
       - name: Release to Homebrew tap
         uses: Justintime50/homebrew-releaser@a62d7a359683bfc047cdb2431f53ee58241464d1 # v3.3.0
         with:
@@ -218,7 +247,7 @@ jobs:
           homebrew_tap: homebrew-tap
           github_token: ${{ steps.release-bot.outputs.token }}
           commit_owner: ${{ steps.release-bot.outputs.app-slug }}[bot]
-          commit_email: 312581908+${{ steps.release-bot.outputs.app-slug }}[bot]@users.noreply.github.com
+          commit_email: ${{ steps.release-bot-identity.outputs.user-id }}+${{ steps.release-bot.outputs.app-slug }}[bot]@users.noreply.github.com
           branch: main
           formula_folder: Formula
           install: 'bin.install "tccutil-rs"'
