@@ -67,10 +67,8 @@ jobs:
       deployment: false
     permissions:
       attestations: write
-      contents: write
+      contents: read
       id-token: write
-      issues: write
-      pull-requests: write
     concurrency:
       group: release-${{ github.repository }}-main
       cancel-in-progress: false
@@ -88,6 +86,24 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+
+      - name: Create release bot token
+        id: release-bot
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ vars.UINAF_RELEASE_APP_ID }}
+          private-key: ${{ secrets.UINAF_RELEASE_APP_PRIVATE_KEY }}
+          owner: uinaf
+          repositories: |
+            tccutil-rs
+          permission-contents: write
+          permission-issues: write
+          permission-pull-requests: write
+
+      - name: Authorize release writes
+        env:
+          GH_TOKEN: ${{ steps.release-bot.outputs.token }}
+        run: gh auth setup-git
 
       - name: Install Rust toolchain (from rust-toolchain.toml + darwin cross-compile targets)
         # `rustup show` installs the channel pinned in rust-toolchain.toml
@@ -118,11 +134,12 @@ jobs:
             @semantic-release/github@12.0.8
             conventional-changelog-conventionalcommits@9.3.1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GIT_AUTHOR_NAME: github-actions[bot]
-          GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
-          GIT_COMMITTER_NAME: github-actions[bot]
-          GIT_COMMITTER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+          GITHUB_TOKEN: ${{ steps.release-bot.outputs.token }}
+          GH_TOKEN: ${{ steps.release-bot.outputs.token }}
+          GIT_AUTHOR_NAME: ${{ steps.release-bot.outputs.app-slug }}[bot]
+          GIT_AUTHOR_EMAIL: 312581908+${{ steps.release-bot.outputs.app-slug }}[bot]@users.noreply.github.com
+          GIT_COMMITTER_NAME: ${{ steps.release-bot.outputs.app-slug }}[bot]
+          GIT_COMMITTER_EMAIL: 312581908+${{ steps.release-bot.outputs.app-slug }}[bot]@users.noreply.github.com
 
       - name: Build dual-arch macOS binaries
         if: steps.release.outputs.new_release_published == 'true'
@@ -153,7 +170,7 @@ jobs:
         # this step appends the binaries and checksums to the same Release.
         if: steps.release.outputs.new_release_published == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.release-bot.outputs.token }}
           RELEASE_TAG: ${{ steps.release.outputs.new_release_git_tag }}
         run: |
           gh release upload "${RELEASE_TAG}" \
@@ -182,14 +199,26 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: Create release bot token
+        id: release-bot
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ vars.UINAF_RELEASE_APP_ID }}
+          private-key: ${{ secrets.UINAF_RELEASE_APP_PRIVATE_KEY }}
+          owner: uinaf
+          repositories: |
+            tccutil-rs
+            homebrew-tap
+          permission-contents: write
+
       - name: Release to Homebrew tap
         uses: Justintime50/homebrew-releaser@a62d7a359683bfc047cdb2431f53ee58241464d1 # v3.3.0
         with:
           homebrew_owner: uinaf
           homebrew_tap: homebrew-tap
-          github_token: ${{ secrets.TAP_GITHUB_TOKEN }}
-          commit_owner: github-actions[bot]
-          commit_email: 41898282+github-actions[bot]@users.noreply.github.com
+          github_token: ${{ steps.release-bot.outputs.token }}
+          commit_owner: ${{ steps.release-bot.outputs.app-slug }}[bot]
+          commit_email: 312581908+${{ steps.release-bot.outputs.app-slug }}[bot]@users.noreply.github.com
           branch: main
           formula_folder: Formula
           install: 'bin.install "tccutil-rs"'
