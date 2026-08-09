@@ -51,9 +51,8 @@ jobs:
         run: scripts/verify.sh --full
 
   # Push-to-main release. semantic-release decides the next version from
-  # Conventional Commits since the last `v*` tag, runs scripts/release-
-  # prepare.sh to bump Cargo.toml + Cargo.lock, commits the bump back to
-  # main with [skip ci], and creates a draft GitHub Release. We build and
+  # Conventional Commits since the last `v*` tag and creates a draft GitHub
+  # Release. We build and
   # attest dual-arch macOS tarballs before publishing the immutable release,
   # then bump the Homebrew formula on uinaf/homebrew-tap.
   #
@@ -333,33 +332,53 @@ jobs:
             homebrew-tap
           permission-contents: write
 
-      - name: Resolve release bot identity
-        id: release-bot-identity
+      - name: Check out tap
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: uinaf/homebrew-tap
+          token: ${{ steps.release-bot.outputs.token }}
+          path: homebrew-tap
+          persist-credentials: false
+          ref: main
+
+      - name: Prepare formula
         env:
           GH_TOKEN: ${{ steps.release-bot.outputs.token }}
-          APP_SLUG: ${{ steps.release-bot.outputs.app-slug }}
+          VERSION: ${{ needs.release.outputs.new_release_version }}
         run: |
           set -euo pipefail
-          user_id="$(gh api "/users/${APP_SLUG}[bot]" --jq .id)"
-          if [[ ! "$user_id" =~ ^[0-9]+$ ]]; then
-            echo "failed to resolve numeric bot user id for ${APP_SLUG}[bot]" >&2
-            exit 1
-          fi
-          echo "user-id=${user_id}" >> "$GITHUB_OUTPUT"
+          arm64="tccutil-rs-${VERSION}-darwin-arm64.tar.gz"
+          amd64="tccutil-rs-${VERSION}-darwin-amd64.tar.gz"
+          gh release download "v${VERSION}" --repo uinaf/tccutil-rs \
+            --pattern "$arm64" --pattern "$amd64" --dir "$RUNNER_TEMP"
+          curl --fail --location --silent --show-error \
+            "https://github.com/uinaf/tccutil-rs/archive/refs/tags/v${VERSION}.tar.gz" \
+            --output "$RUNNER_TEMP/source.tar.gz"
+          source_sha="$(sha256sum "$RUNNER_TEMP/source.tar.gz" | awk '{print $1}')"
+          arm64_sha="$(sha256sum "$RUNNER_TEMP/$arm64" | awk '{print $1}')"
+          amd64_sha="$(sha256sum "$RUNNER_TEMP/$amd64" | awk '{print $1}')"
+          SOURCE_SHA="$source_sha" ARM64_SHA="$arm64_sha" AMD64_SHA="$amd64_sha" ruby -e '
+            path = ARGV.fetch(0)
+            version = ENV.fetch("VERSION")
+            text = File.read(path)
+            previous = text[/archive\/refs\/tags\/v([^\"]+)\.tar\.gz/, 1] or abort "source URL not found"
+            text.gsub!(previous, version)
+            text.sub!(/(archive\/refs\/tags\/v[^\"]+\.tar\.gz"\n\s+sha256 ")[0-9a-f]+/, "\\1#{ENV.fetch("SOURCE_SHA")}") or abort "source sha not found"
+            text.sub!(/(darwin-amd64\.tar\.gz"\n\s+sha256 ")[0-9a-f]+/, "\\1#{ENV.fetch("AMD64_SHA")}") or abort "amd64 sha not found"
+            text.sub!(/(darwin-arm64\.tar\.gz"\n\s+sha256 ")[0-9a-f]+/, "\\1#{ENV.fetch("ARM64_SHA")}") or abort "arm64 sha not found"
+            File.write(path, text)
+          ' homebrew-tap/Formula/tccutil-rs.rb
+          grep -F "v${VERSION}.tar.gz" homebrew-tap/Formula/tccutil-rs.rb
+          grep -F "tccutil-rs-${VERSION}-darwin-amd64.tar.gz" homebrew-tap/Formula/tccutil-rs.rb
+          grep -F "tccutil-rs-${VERSION}-darwin-arm64.tar.gz" homebrew-tap/Formula/tccutil-rs.rb
 
-      - name: Release to Homebrew tap
-        uses: Justintime50/homebrew-releaser@a62d7a359683bfc047cdb2431f53ee58241464d1 # v3.3.0
+      - name: Commit formula
+        uses: planetscale/ghcommit-action@a6b150b81dca5dd027baa898604418eec9e11465 # v0.2.22
         with:
-          homebrew_owner: uinaf
-          homebrew_tap: homebrew-tap
-          github_token: ${{ steps.release-bot.outputs.token }}
-          commit_owner: ${{ steps.release-bot.outputs.app-slug }}[bot]
-          commit_email: ${{ steps.release-bot-identity.outputs.user-id }}+${{ steps.release-bot.outputs.app-slug }}[bot]@users.noreply.github.com
+          commit_message: "tccutil-rs ${{ needs.release.outputs.new_release_version }}"
+          repo: uinaf/homebrew-tap
           branch: main
-          formula_folder: Formula
-          install: 'bin.install "tccutil-rs"'
-          test: |
-            assert_match "Manage macOS TCC permissions", shell_output("#{bin}/tccutil-rs --help")
-          target_darwin_arm64: true
-          target_darwin_amd64: true
-          skip_checksum: true
+          file_pattern: Formula/tccutil-rs.rb
+          repository: homebrew-tap
+        env:
+          GITHUB_TOKEN: ${{ steps.release-bot.outputs.token }}
