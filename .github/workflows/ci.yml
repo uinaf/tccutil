@@ -86,6 +86,7 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+          ref: main
 
       - name: Create release bot token
         id: release-bot
@@ -275,6 +276,10 @@ jobs:
         run: |
           scripts/release-prepare.sh "$RELEASE_VERSION"
           git add -- Cargo.toml Cargo.lock
+
+      - name: Normalize commit target
+        if: steps.finalized.outputs.ready == 'true'
+        run: git remote set-url origin "https://github.com/${GITHUB_REPOSITORY}.git"
 
       - name: Commit released Cargo versions
         if: steps.finalized.outputs.ready == 'true'
