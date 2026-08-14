@@ -183,7 +183,22 @@ jobs:
             echo "release tag is not on origin/main: $tag" >&2
             exit 1
           fi
-          is_draft="$(gh release view "$tag" --json isDraft --jq .isDraft)"
+          is_draft=""
+          release_error_file="$(mktemp)"
+          trap 'rm -f "$release_error_file"' EXIT
+          for attempt in {1..12}; do
+            if is_draft="$(gh release view "$tag" --json isDraft --jq .isDraft 2>"$release_error_file")"; then
+              break
+            fi
+            if (( attempt == 12 )); then
+              cat "$release_error_file" >&2
+              echo "release $tag lookup failed after $attempt attempts" >&2
+              exit 1
+            fi
+            sleep 5
+          done
+          rm -f "$release_error_file"
+          trap - EXIT
           {
             echo "tag=$tag"
             echo "version=${tag#v}"
