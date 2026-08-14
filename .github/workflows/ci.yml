@@ -183,7 +183,17 @@ jobs:
             echo "release tag is not on origin/main: $tag" >&2
             exit 1
           fi
-          is_draft="$(gh release view "$tag" --json isDraft --jq .isDraft)"
+          is_draft=""
+          for attempt in {1..12}; do
+            if is_draft="$(gh release view "$tag" --json isDraft --jq .isDraft 2>/dev/null)"; then
+              break
+            fi
+            if (( attempt == 12 )); then
+              echo "release $tag did not become visible after $attempt attempts" >&2
+              exit 1
+            fi
+            sleep 5
+          done
           {
             echo "tag=$tag"
             echo "version=${tag#v}"
