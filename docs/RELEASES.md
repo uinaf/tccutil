@@ -19,8 +19,7 @@ Conventional Commits drive the bump (see `.releaserc.json`):
 2. Protected `release` Environment mints a short-lived `uinaf-releaser` installation token scoped to `tccutil-rs`
 3. `semantic-release` prepares the Cargo files, commits them through GitHub's
    signed App commit API, then creates the version tag and a mutable draft
-   GitHub Release; authenticated release lookup retries for up to one minute and
-   fails if the expected draft remains unavailable
+   GitHub Release; exact-tag lookup fails if the expected Release is unavailable
 4. The release job builds, uploads, and attests both darwin archives, publishes the draft once, and verifies GitHub's immutable-release attestation
 5. A follow-up job mints a Contents-only token scoped to `tccutil-rs` + `homebrew-tap` and updates the Homebrew formula
 
