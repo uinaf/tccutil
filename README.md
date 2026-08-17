@@ -159,7 +159,7 @@ $ sudo tccutil-rs revoke Accessibility /usr/local/bin/my-tool
 Revoked Accessibility access for '/usr/local/bin/my-tool'
 ```
 
-### `tccutil-rs enable` / `disable`: toggle an existing entry
+### `tccutil-rs enable` / `tccutil-rs disable`: toggle an existing entry
 
 ```
 $ sudo tccutil-rs enable Accessibility /usr/local/bin/my-tool
