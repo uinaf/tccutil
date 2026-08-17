@@ -31,9 +31,9 @@ One entrypoint runs the core gates:
 scripts/verify.sh
 ```
 
-It runs `cargo fmt --check`, `cargo clippy -- -D warnings`, and `cargo test` — what the optional pre-push hook runs.
+It runs `cargo fmt --check`, `cargo clippy -- -D warnings`, and `cargo test`, the same set the optional pre-push hook runs.
 
-CI runs the full gate (`cargo llvm-cov` for coverage at 75% line threshold — that also runs the test suite — plus a release build):
+CI runs the full gate (`cargo llvm-cov` for coverage at 75% line threshold, which also runs the test suite, plus a release build):
 
 ```sh
 scripts/verify.sh --full
@@ -50,7 +50,7 @@ After install, every `git push` runs `scripts/verify.sh` and fails the push if a
 
 ## Development notes
 
-- Conventional commits — `feat:`, `fix:`, `test:`, `docs:`, `chore:`. CI does not enforce; reviewers do.
+- Conventional commits: `feat:`, `fix:`, `test:`, `docs:`, `chore:`. CI does not enforce; reviewers do.
 - No `unsafe` outside the single `libc::geteuid()` call in `src/tcc.rs`.
 - Errors return `Result<_, TccError>`. Add a new variant when an error doesn't fit the existing kinds.
 - Table output in `src/main.rs` does manual ANSI-aware padding. If you touch it, run `tccutil-rs list` against a real TCC.db to eyeball alignment.
@@ -58,7 +58,7 @@ After install, every `git push` runs `scripts/verify.sh` and fails the push if a
 
 ## Releases
 
-Use Conventional Commits (`feat:`, `fix:`, `docs:`, …) — they drive versions.
+Use Conventional Commits (`feat:`, `fix:`, `docs:`, …); they drive versions.
 
 Successful pushes to protected `main` evaluate commits after `verify` passes.
 The release job mints a short-lived `uinaf-releaser` token inside the
@@ -67,7 +67,7 @@ updates the Homebrew formula. See [Releases](docs/RELEASES.md).
 
 ## Pull requests
 
-- Keep changes focused — a single concern per PR.
+- Keep changes focused: a single concern per PR.
 - Add or update behavior-covering tests when behavior changes.
 - Run `scripts/verify.sh` before pushing.
 - Include the most useful evidence for the kind of change:

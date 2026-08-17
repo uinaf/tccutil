@@ -29,7 +29,7 @@ scripts/setup-hooks.sh
 
 ## Docs
 
-- [README](README.md) — install, commands, SIP limits
-- [Contributing](CONTRIBUTING.md) — setup, verify, pull requests
-- [Releases](docs/RELEASES.md) — Conventional Commits publish path
-- [Security](SECURITY.md) — private vulnerability reporting
+- [README](README.md): install, commands, SIP limits
+- [Contributing](CONTRIBUTING.md): setup, verify, pull requests
+- [Releases](docs/RELEASES.md): Conventional Commits publish path
+- [Security](SECURITY.md): private vulnerability reporting
