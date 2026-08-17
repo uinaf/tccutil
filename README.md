@@ -1,6 +1,6 @@
 ![tccutil-rs — macOS TCC.db management utility.](https://uinaf.dev/og/banner/tccutil-rs.png)
 
-# tccutil
+# uinaf/tccutil-rs
 
 A replacement for Apple's `/usr/bin/tccutil` and [jacobsalmela/tccutil.py](https://github.com/jacobsalmela/tccutil). Zero runtime dependencies, single static binary.
 
@@ -49,7 +49,7 @@ alias tccutil="tccutil-rs"
 
 ## Commands
 
-### `tccutil-rs list` — List all permissions
+### `tccutil-rs list`: list all permissions
 
 Shows all TCC entries from both user and system databases.
 
@@ -68,7 +68,7 @@ Screen Recording           node                                                 
 ...
 ```
 
-#### `--client <NAME>` — Filter by client (partial match)
+#### `--client <NAME>`: filter by client (partial match)
 
 ```
 $ tccutil-rs list --client node --compact
@@ -86,7 +86,7 @@ Screen Recording           ″       granted     system  2026-02-09 11:31:33
 9 entries total
 ```
 
-#### `--service <NAME>` — Filter by service
+#### `--service <NAME>`: filter by service
 
 ```
 $ tccutil-rs list --service "Screen Recording"
@@ -99,11 +99,11 @@ Screen Recording  com.apple.screensharing.agent                  granted  system
 2 entries total
 ```
 
-#### `--user` — Query user database only
+#### `--user`: query user database only
 
 By default, `tccutil-rs` reads both databases and shows a source column. Use `--user` to query only the per-user database.
 
-### `tccutil-rs services` — List known TCC service names
+### `tccutil-rs services`: list known TCC service names
 
 Maps internal `kTCCService*` identifiers to human-readable names. Both forms are accepted by all commands.
 
@@ -122,7 +122,7 @@ kTCCServiceSystemPolicyAllFiles      Full Disk Access
 ...
 ```
 
-### `tccutil-rs info` — Show database info and SIP status
+### `tccutil-rs info`: show database info and SIP status
 
 ```
 $ tccutil-rs info
@@ -141,7 +141,7 @@ System DB: /Library/Application Support/com.apple.TCC/TCC.db
   Schema digest: 34abf99d20 (known)
 ```
 
-### `tccutil-rs grant` — Grant a permission
+### `tccutil-rs grant`: grant a permission
 
 ```
 $ sudo tccutil-rs grant Accessibility /usr/local/bin/my-tool
@@ -151,7 +151,7 @@ Granted Accessibility access for '/usr/local/bin/my-tool'
 
 System-level services require `sudo`. Use `--user` to write to the user database instead.
 
-### `tccutil-rs revoke` — Revoke a permission
+### `tccutil-rs revoke`: revoke a permission
 
 ```
 $ sudo tccutil-rs revoke Accessibility /usr/local/bin/my-tool
@@ -159,7 +159,7 @@ $ sudo tccutil-rs revoke Accessibility /usr/local/bin/my-tool
 Revoked Accessibility access for '/usr/local/bin/my-tool'
 ```
 
-### `tccutil-rs enable` / `disable` — Toggle an existing entry
+### `tccutil-rs enable` / `tccutil-rs disable`: toggle an existing entry
 
 ```
 $ sudo tccutil-rs enable Accessibility /usr/local/bin/my-tool
@@ -171,7 +171,7 @@ $ sudo tccutil-rs disable Accessibility /usr/local/bin/my-tool
 Disabled Accessibility access for '/usr/local/bin/my-tool'
 ```
 
-### `tccutil-rs reset` — Reset entries for a service
+### `tccutil-rs reset`: reset entries for a service
 
 ```
 $ sudo tccutil-rs reset Accessibility
@@ -187,7 +187,7 @@ Reset Accessibility entry for '/usr/local/bin/my-tool'
 
 | Flag | Description |
 |------|-------------|
-| `--user`, `-u` | Force the per-user database for `list` and write commands. Default `list` merges both DBs; default per-client writes (`grant`/`revoke`/`enable`/`disable`/`reset CLIENT`) route by service (system services → system DB, others → user DB). Default `reset SERVICE` (no client) clears matching rows in both DBs in one SQLite transaction (a statement failure rolls back both; crash-atomicity under WAL is not guaranteed). It may require `sudo` when the live system DB has matches. If the system DB exists but cannot be inspected (common without Full Disk Access), default reset fails closed — use `--user` to reset only the per-user database. `info` always reports both DBs; `services` does not use a database. |
+| `--user`, `-u` | Force the per-user database for `list` and write commands. Default `list` merges both DBs; default per-client writes (`grant`/`revoke`/`enable`/`disable`/`reset CLIENT`) route by service (system services → system DB, others → user DB). Default `reset SERVICE` (no client) clears matching rows in both DBs in one SQLite transaction (a statement failure rolls back both; crash-atomicity under WAL is not guaranteed). It may require `sudo` when the live system DB has matches. If the system DB exists but cannot be inspected (common without Full Disk Access), default reset fails closed; use `--user` to reset only the per-user database. `info` always reports both DBs; `services` does not use a database. |
 | `--force` | Allow write commands against an unrecognized TCC `access` table schema digest (fails closed by default) |
 | `--json`, `-j` | Emit a machine-readable JSON envelope instead of human-formatted output |
 | `--help`, `-h` | Print help |
@@ -231,26 +231,28 @@ If you see an authorization-denied error opening `TCC.db`, grant **Full Disk Acc
 |---|---|---|---|
 | Language | Built-in (Obj-C) | Python | Rust |
 | Dependencies | Ships with macOS | Python 3 + pip | None (static binary) |
-| List permissions | ❌ | ✅ | ✅ |
-| Filter by client/service | ❌ | ✅ | ✅ |
-| Compact output | ❌ | ❌ | ✅ |
-| Grant | ❌ | ✅ ⚠️ | ✅ ⚠️ |
-| Revoke | ❌ | ✅ ⚠️ | ✅ ⚠️ |
-| Enable/Disable toggle | ❌ | ❌ | ✅ ⚠️ |
-| Reset | ✅ (only feature) | ✅ | ✅ |
-| Service name lookup | ❌ | ❌ | ✅ |
-| DB info / SIP check | ❌ | ❌ | ✅ |
+| List permissions | no | yes | yes |
+| Filter by client/service | no | yes | yes |
+| Compact output | no | no | yes |
+| Grant | no | yes* | yes* |
+| Revoke | no | yes* | yes* |
+| Enable/Disable toggle | no | no | yes* |
+| Reset | yes (only feature) | yes | yes |
+| Service name lookup | no | no | yes |
+| DB info / SIP check | no | no | yes |
 | User + System DB | System only | Both | Both |
 | Requires SIP disabled | No | **Yes** (all writes) | **No** (reads always work) |
 | macOS version support | Current | 10.9–14 | 15+ |
 
-> ⚠️ Write commands (`grant`, `revoke`, `enable`, `disable`) modify the TCC database directly. The **user database** is writable without disabling SIP. The **system database** requires `sudo` and works for most operations on recent macOS. Unlike `tccutil.py`, `tccutil-rs` does **not** require SIP to be disabled — but some system-level writes may still be restricted by macOS. Disabling SIP is generally **not recommended** as it removes important security protections.
+\* Writes may be restricted by SIP; see the note below.
+
+> Write commands (`grant`, `revoke`, `enable`, `disable`) modify the TCC database directly. The **user database** is writable without disabling SIP. The **system database** requires `sudo` and works for most operations on recent macOS. Unlike `tccutil.py`, `tccutil-rs` does **not** require SIP to be disabled, but some system-level writes may still be restricted by macOS. Disabling SIP is generally **not recommended** as it removes important security protections.
 
 ## Docs
 
-- [Contributing](CONTRIBUTING.md) — Set up a dev environment, run validation, and open a pull request.
-- [Security](SECURITY.md) — Private-first vulnerability reporting.
-- [Agent guide](AGENTS.md) — What an agent needs to know to work in this repo.
+- [Contributing](CONTRIBUTING.md): set up a dev environment, run validation, and open a pull request.
+- [Security](SECURITY.md): private-first vulnerability reporting.
+- [Agent guide](AGENTS.md): what an agent needs to know to work in this repo.
 
 ## Contributing
 

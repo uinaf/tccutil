@@ -20,8 +20,8 @@ Useful reports usually involve:
 
 Out of scope:
 
-- macOS SIP blocking writes — the operating system enforcing its own policy.
-- The user being prompted for Full Disk Access — Apple's TCC subsystem doing its job.
+- macOS SIP blocking writes: the operating system enforcing its own policy.
+- The user being prompted for Full Disk Access: Apple's TCC subsystem doing its job.
 - Bugs in Apple's `tccutil`, `csrutil`, or SQLite. Report those upstream.
 
 ## Guidelines
