@@ -187,13 +187,24 @@ Reset Accessibility entry for '/usr/local/bin/my-tool'
 
 | Flag | Description |
 |------|-------------|
-| `--user`, `-u` | Force the per-user database for `list` and write commands. Default `list` merges both DBs; default per-client writes (`grant`/`revoke`/`enable`/`disable`/`reset CLIENT`) route by service (system services → system DB, others → user DB). Default `reset SERVICE` (no client) clears matching rows in both DBs in one SQLite transaction (a statement failure rolls back both; crash-atomicity under WAL is not guaranteed). It may require `sudo` when the live system DB has matches. If the system DB exists but cannot be inspected (common without Full Disk Access), default reset fails closed; use `--user` to reset only the per-user database. `info` always reports both DBs; `services` does not use a database. |
+| `--user`, `-u` | Force the per-user database for `list` and write commands; default routing is listed below |
 | `--force` | Allow write commands against an unrecognized TCC `access` table schema digest (fails closed by default) |
 | `--json`, `-j` | Emit a machine-readable JSON envelope instead of human-formatted output |
 | `--help`, `-h` | Print help |
 | `--version`, `-V` | Print version |
 
 `list` also accepts `--compact` / `-c` to show binary names instead of full paths.
+
+### Database routing
+
+- Default `list` merges both databases.
+- Default per-client writes (`grant`/`revoke`/`enable`/`disable`/`reset CLIENT`) route by service: system services use the system database, others use the user database.
+- Default `reset SERVICE` (no client) clears matching rows in both databases in one SQLite transaction, and a statement failure rolls back both.
+- That dual-database reset is atomic per statement only: crash-atomicity
+  under write-ahead logging (WAL) is not guaranteed across both databases.
+- Default `reset SERVICE` may require `sudo` when the live system database has matches.
+- If the system database exists but cannot be inspected (common without Full Disk Access), default `reset SERVICE` fails closed; use `--user` to reset only the per-user database.
+- `info` always reports both databases; `services` uses no database.
 
 ## JSON output
 
