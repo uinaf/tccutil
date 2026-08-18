@@ -5,7 +5,7 @@ updates:
     schedule:
       interval: monthly
     cooldown:
-      default-days: 1
+      default-days: 7
     groups:
       cargo-patch-minor:
         update-types: ["patch", "minor"]
@@ -19,7 +19,7 @@ updates:
     schedule:
       interval: monthly
     cooldown:
-      default-days: 1
+      default-days: 7
     groups:
       actions-patch-minor:
         update-types: ["patch", "minor"]
