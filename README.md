@@ -200,7 +200,8 @@ Reset Accessibility entry for '/usr/local/bin/my-tool'
 - Default `list` merges both databases.
 - Default per-client writes (`grant`/`revoke`/`enable`/`disable`/`reset CLIENT`) route by service: system services use the system database, others use the user database.
 - Default `reset SERVICE` (no client) clears matching rows in both databases in one SQLite transaction, and a statement failure rolls back both.
-- Crash-atomicity under write-ahead logging (WAL) is not guaranteed.
+- That dual-database reset is atomic per statement only: crash-atomicity
+  under write-ahead logging (WAL) is not guaranteed across both databases.
 - Default `reset SERVICE` may require `sudo` when the live system database has matches.
 - If the system database exists but cannot be inspected (common without Full Disk Access), default `reset SERVICE` fails closed; use `--user` to reset only the per-user database.
 - `info` always reports both databases; `services` uses no database.
