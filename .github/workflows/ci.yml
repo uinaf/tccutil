@@ -22,7 +22,7 @@ jobs:
     # avoids the null-deref that would otherwise prevent the job scheduling).
     if: ${{ github.event_name != 'push' || !contains(github.event.head_commit.message, '[skip ci]') }}
     name: Verify
-    runs-on: macos-latest
+    runs-on: blacksmith-6vcpu-macos-latest
     permissions:
       contents: read
     concurrency:
@@ -61,7 +61,7 @@ jobs:
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && !contains(github.event.head_commit.message, '[skip ci]') }}
     name: Release
     needs: [verify]
-    runs-on: macos-latest
+    runs-on: blacksmith-6vcpu-macos-latest
     environment:
       name: release
       deployment: false
@@ -282,7 +282,7 @@ jobs:
     if: needs.release.outputs.release_ready == 'true'
     name: Update Homebrew tap
     needs: [release]
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     timeout-minutes: 10
     environment:
       name: release
