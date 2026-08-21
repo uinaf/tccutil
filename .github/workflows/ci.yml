@@ -48,7 +48,7 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-llvm-cov
 
       - name: Verify
-        run: scripts/verify.sh --full
+        run: make verify-full
 
   # Push-to-main release. semantic-release decides the next version from
   # Conventional Commits since the last `v*` tag and creates a draft GitHub

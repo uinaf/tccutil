@@ -28,15 +28,18 @@ Read commands work without privileges. Write commands (`grant`, `revoke`, `enabl
 One entrypoint runs the core gates:
 
 ```sh
-scripts/verify.sh
+make verify
 ```
 
-It runs `cargo fmt --check`, `cargo clippy -- -D warnings`, and `cargo test`, the same set the optional pre-push hook runs.
+It runs stale `cargo fmt --check`, `cargo clippy -- -D warnings`, and
+`cargo test` lanes concurrently, the same set the optional pre-push hook runs.
+Use the exhaustive command after deleting or renaming Rust sources because
+timestamp freshness cannot represent those changes reliably.
 
 CI runs the full gate (`cargo llvm-cov` for coverage at 75% line threshold, which also runs the test suite, plus a release build):
 
 ```sh
-scripts/verify.sh --full
+make verify-full
 ```
 
 Locally you can run the same command before opening a PR if you want parity with the CI Verify job.
@@ -46,7 +49,7 @@ Optional pre-push gate that calls the same script:
 scripts/setup-hooks.sh         # one-time, points git at .git-hooks/
 ```
 
-After install, every `git push` runs `scripts/verify.sh` and fails the push if anything goes red.
+After install, every `git push` runs `make verify` and fails the push if anything goes red.
 
 ## Development notes
 
@@ -69,7 +72,7 @@ updates the Homebrew formula. See [Releases](docs/RELEASES.md).
 
 - Keep changes focused: a single concern per PR.
 - Add or update behavior-covering tests when behavior changes.
-- Run `scripts/verify.sh` before pushing.
+- Run `make verify` before pushing.
 - Include the most useful evidence for the kind of change:
   - Command output for new flags or subcommands
   - Before-and-after for output formatting changes
