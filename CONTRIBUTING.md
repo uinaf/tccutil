@@ -43,7 +43,7 @@ make verify-full
 ```
 
 Locally you can run the same command before opening a PR if you want parity with the CI Verify job.
-Optional pre-push gate that calls the same script:
+Optional pre-push gate that calls the same verification target:
 
 ```sh
 scripts/setup-hooks.sh         # one-time, points git at .git-hooks/
