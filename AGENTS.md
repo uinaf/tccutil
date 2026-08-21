@@ -5,9 +5,14 @@ Rust CLI for managing macOS TCC privacy permission databases. Single static bina
 ## Verify
 
 ```sh
-scripts/verify.sh          # fmt + clippy + test (pre-push)
-scripts/verify.sh --full   # CI gate (+ coverage + release build)
+make verify       # selective cached fmt + clippy + test (pre-push)
+make verify-full  # forced CI gate (+ coverage + release build)
 ```
+
+`make verify` runs independent stale lanes in parallel. Timestamp freshness is
+an edit-loop optimization; use `make verify-full` after deleting or renaming
+Rust sources and before claims that require exhaustive proof. CI always runs the
+full gate.
 
 ## Build
 
