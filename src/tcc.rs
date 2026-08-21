@@ -1107,25 +1107,17 @@ mod tests {
     // ── Auth value display ────────────────────────────────────────────
 
     #[test]
-    fn auth_value_denied() {
-        assert_eq!(auth_value_display(0), "denied");
-    }
-
-    #[test]
-    fn auth_value_granted() {
-        assert_eq!(auth_value_display(2), "granted");
-    }
-
-    #[test]
-    fn auth_value_limited() {
-        assert_eq!(auth_value_display(3), "limited");
-    }
-
-    #[test]
-    fn auth_value_unknown_values() {
-        assert_eq!(auth_value_display(1), "unknown(1)");
-        assert_eq!(auth_value_display(99), "unknown(99)");
-        assert_eq!(auth_value_display(-1), "unknown(-1)");
+    fn auth_values_have_stable_display_names() {
+        for (value, expected) in [
+            (0, "denied"),
+            (2, "granted"),
+            (3, "limited"),
+            (1, "unknown(1)"),
+            (99, "unknown(99)"),
+            (-1, "unknown(-1)"),
+        ] {
+            assert_eq!(auth_value_display(value), expected);
+        }
     }
 
     // ── DB open authorization hint mapping ───────────────────────────
@@ -1337,26 +1329,6 @@ mod tests {
     }
 
     #[test]
-    fn list_partial_failure_emits_warning_when_warnings_enabled() {
-        // Same scenario as the partial-success test, but with warnings enabled
-        // so the per-failure stderr branch is exercised. The visible side
-        // effect is a warning on stderr (captured by cargo test); the
-        // observable contract is that the function still returns Ok.
-        let dir = tempfile::tempdir().expect("tempdir");
-        let good_user = dir.path().join("user.db");
-        let bad_system = dir.path().join("system.db");
-        build_valid_tcc_db(&good_user);
-        std::fs::write(&bad_system, b"not a tcc db").expect("write system");
-
-        let db = TccDb::with_paths(good_user, bad_system, DbTarget::Default);
-        let result = db.list(None, None);
-        assert!(result.is_ok(), "partial success should return Ok");
-        let listed = result.unwrap();
-        assert_eq!(listed.warnings.len(), 1);
-        assert_eq!(listed.warnings[0].kind, ListWarningKind::DbUnreadable);
-    }
-
-    #[test]
     fn service_filter_partial_match_raw_key() {
         let dir = tempfile::tempdir().expect("tempdir");
         let user = dir.path().join("user.db");
@@ -1392,17 +1364,6 @@ mod tests {
         let db = TccDb::with_paths(user, dir.path().join("system.db"), DbTarget::User);
         let filtered = db.list(Some("nonexistent"), None).unwrap().entries;
         assert!(filtered.is_empty());
-    }
-
-    // ── SERVICE_MAP sanity ────────────────────────────────────────────
-
-    #[test]
-    fn service_map_contains_expected_entries() {
-        assert!(SERVICE_MAP.contains_key("kTCCServiceAccessibility"));
-        assert!(SERVICE_MAP.contains_key("kTCCServiceCamera"));
-        assert!(SERVICE_MAP.contains_key("kTCCServiceMicrophone"));
-        assert!(SERVICE_MAP.contains_key("kTCCServiceScreenCapture"));
-        assert!(SERVICE_MAP.len() > 20);
     }
 
     // ── Format timestamp ──────────────────────────────────────────────

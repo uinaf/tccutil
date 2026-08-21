@@ -1,7 +1,5 @@
 use std::process::Command;
 
-/// Helper: run the `tccutil-rs` binary with given args, returning (stdout, stderr, success).
-///
 /// `HOME` is overridden to a fresh tempdir so the user TCC.db path resolves to
 /// a non-existent file. That way `list --user` returns an empty result without
 /// depending on the host machine's privacy data or Full Disk Access state, and
@@ -36,14 +34,12 @@ fn services_runs_and_lists_known_services() {
     let (stdout, _stderr, success) = run_tcc(&["services"]);
     assert!(success, "tccutil-rs services should exit 0");
 
-    // Header row
     assert!(stdout.contains("INTERNAL NAME"), "should have header");
     assert!(
         stdout.contains("DESCRIPTION"),
         "should have description header"
     );
 
-    // Spot-check a handful of well-known service names
     assert!(
         stdout.contains("Accessibility"),
         "should list Accessibility"
@@ -63,41 +59,19 @@ fn services_runs_and_lists_known_services() {
 // ── tccutil-rs list ─────────────────────────────────────────────────
 
 #[test]
-fn list_runs_without_error() {
-    // list reads the user TCC DB — may return entries or "No entries found."
-    // Either way it should not crash.
-    let (stdout, _stderr, success) = run_tcc(&["--user", "list"]);
-    assert!(success, "tccutil-rs --user list should exit 0");
-    // Output is either the table or the empty-state message
-    assert!(
-        stdout.contains("SERVICE") || stdout.contains("No entries found"),
-        "expected table header or empty message, got: {}",
-        stdout
-    );
-}
+fn empty_list_variants_render_the_same_empty_state() {
+    let cases = [
+        &["--user", "list"][..],
+        &["--user", "list", "--compact"][..],
+        &["--user", "list", "--client", "apple"][..],
+        &["--user", "list", "--service", "Camera"][..],
+    ];
 
-#[test]
-fn list_compact_runs_without_error() {
-    let (_stdout, _stderr, success) = run_tcc(&["--user", "list", "--compact"]);
-    assert!(success, "tccutil-rs --user list --compact should exit 0");
-}
-
-#[test]
-fn list_with_client_filter_runs() {
-    let (_stdout, _stderr, success) = run_tcc(&["--user", "list", "--client", "apple"]);
-    assert!(
-        success,
-        "tccutil-rs --user list --client apple should exit 0"
-    );
-}
-
-#[test]
-fn list_with_service_filter_runs() {
-    let (_stdout, _stderr, success) = run_tcc(&["--user", "list", "--service", "Camera"]);
-    assert!(
-        success,
-        "tccutil-rs --user list --service Camera should exit 0"
-    );
+    for args in cases {
+        let (stdout, stderr, success) = run_tcc(args);
+        assert!(success, "args: {args:?}; stderr: {stderr}");
+        assert_eq!(stdout, "No entries found.\n", "args: {args:?}");
+    }
 }
 
 // ── tccutil-rs info ─────────────────────────────────────────────────
@@ -132,17 +106,18 @@ fn no_subcommand_prints_help_and_fails() {
 
 #[test]
 fn unknown_subcommand_fails() {
-    let (_stdout, _stderr, success) = run_tcc(&["bogus"]);
+    let (_stdout, stderr, success) = run_tcc(&["bogus"]);
     assert!(!success, "tccutil-rs bogus should fail");
+    assert!(stderr.contains("unrecognized subcommand 'bogus'"));
 }
 
 #[test]
 fn version_flag_prints_version() {
     let (stdout, _stderr, success) = run_tcc(&["--version"]);
     assert!(success, "tccutil-rs --version should exit 0");
-    assert!(
-        stdout.contains("tccutil-rs"),
-        "version output should mention tccutil-rs"
+    assert_eq!(
+        stdout,
+        format!("tccutil-rs {}\n", env!("CARGO_PKG_VERSION"))
     );
 }
 

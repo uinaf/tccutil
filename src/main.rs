@@ -232,15 +232,19 @@ mod tests {
     }
 
     #[test]
-    fn parse_services() {
-        let cli = parse(&["tcc", "services"]).unwrap();
-        assert!(matches!(cli.command, Commands::Services));
-    }
-
-    #[test]
-    fn parse_info() {
-        let cli = parse(&["tcc", "info"]).unwrap();
-        assert!(matches!(cli.command, Commands::Info));
+    fn parse_read_commands() {
+        for (args, expected) in [
+            (&["tcc", "services"][..], "services"),
+            (&["tcc", "info"][..], "info"),
+        ] {
+            let cli = parse(args).unwrap();
+            let actual = match cli.command {
+                Commands::Services => "services",
+                Commands::Info => "info",
+                _ => panic!("expected {expected}"),
+            };
+            assert_eq!(actual, expected);
+        }
     }
 
     #[test]
@@ -334,15 +338,13 @@ mod tests {
     }
 
     #[test]
-    fn parse_user_flag_global() {
-        let cli = parse(&["tcc", "--user", "list"]).unwrap();
-        assert!(cli.user);
-    }
-
-    #[test]
-    fn parse_user_flag_after_subcommand() {
-        let cli = parse(&["tcc", "list", "--user"]).unwrap();
-        assert!(cli.user);
+    fn parse_user_flag_before_or_after_subcommand() {
+        for args in [
+            &["tcc", "--user", "list"][..],
+            &["tcc", "list", "--user"][..],
+        ] {
+            assert!(parse(args).unwrap().user, "args: {args:?}");
+        }
     }
 
     #[test]
@@ -352,48 +354,36 @@ mod tests {
     }
 
     #[test]
-    fn parse_json_flag_global() {
-        let cli = parse(&["tcc", "--json", "services"]).unwrap();
-        assert!(cli.json);
+    fn parse_json_flag_in_every_supported_form() {
+        for args in [
+            &["tcc", "--json", "services"][..],
+            &["tcc", "services", "--json"][..],
+            &["tcc", "-j", "info"][..],
+        ] {
+            assert!(parse(args).unwrap().json, "args: {args:?}");
+        }
     }
 
     #[test]
-    fn parse_json_flag_after_subcommand() {
-        let cli = parse(&["tcc", "services", "--json"]).unwrap();
-        assert!(cli.json);
+    fn parse_rejects_invalid_command_shapes() {
+        let cases = [
+            (
+                &["tcc"][..],
+                ErrorKind::DisplayHelpOnMissingArgumentOrSubcommand,
+            ),
+            (&["tcc", "foobar"][..], ErrorKind::InvalidSubcommand),
+            (&["tcc", "grant"][..], ErrorKind::MissingRequiredArgument),
+        ];
+
+        for (args, expected) in cases {
+            assert_eq!(parse(args).unwrap_err().kind(), expected, "args: {args:?}");
+        }
     }
 
     #[test]
-    fn parse_json_short_flag() {
-        let cli = parse(&["tcc", "-j", "info"]).unwrap();
-        assert!(cli.json);
-    }
-
-    #[test]
-    fn parse_no_subcommand_is_error() {
-        let err = parse(&["tcc"]).unwrap_err();
-        assert_eq!(
-            err.kind(),
-            ErrorKind::DisplayHelpOnMissingArgumentOrSubcommand
-        );
-    }
-
-    #[test]
-    fn parse_unknown_subcommand_is_error() {
-        let err = parse(&["tcc", "foobar"]).unwrap_err();
-        assert_eq!(err.kind(), ErrorKind::InvalidSubcommand);
-    }
-
-    #[test]
-    fn parse_grant_missing_args_is_error() {
-        let err = parse(&["tcc", "grant"]).unwrap_err();
-        assert_eq!(err.kind(), ErrorKind::MissingRequiredArgument);
-    }
-
-    #[test]
-    fn cli_has_version() {
+    fn cli_version_matches_the_package() {
         let cmd = Cli::command();
-        assert!(cmd.get_version().is_some());
+        assert_eq!(cmd.get_version(), Some(env!("CARGO_PKG_VERSION")));
     }
 
     // ── JSON helpers ──────────────────────────────────────────────────
