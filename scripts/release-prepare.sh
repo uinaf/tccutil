@@ -3,7 +3,7 @@
 # computed for the upcoming release. Invoked by @semantic-release/exec via
 # `prepareCmd` in .releaserc.json.
 #
-# Runs in CI only — you should not need to run this locally.
+# CI runs this script. It is not a local release command.
 set -euo pipefail
 
 if [ "$#" -ne 1 ]; then

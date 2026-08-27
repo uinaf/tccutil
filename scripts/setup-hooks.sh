@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Point git at the repo-tracked hooks under .git-hooks/.
-# Idempotent — safe to re-run.
+# Safe to run more than once.
 set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"

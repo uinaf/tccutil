@@ -27,8 +27,6 @@ fn assert_basic_json_shape(stdout: &str) {
     assert!(trimmed.ends_with('}'), "JSON output should end with '}}'");
 }
 
-// ── tccutil-rs services ─────────────────────────────────────────────
-
 #[test]
 fn services_runs_and_lists_known_services() {
     let (stdout, _stderr, success) = run_tcc(&["services"]);
@@ -56,8 +54,6 @@ fn services_runs_and_lists_known_services() {
     );
 }
 
-// ── tccutil-rs list ─────────────────────────────────────────────────
-
 #[test]
 fn empty_list_variants_render_the_same_empty_state() {
     let cases = [
@@ -74,8 +70,6 @@ fn empty_list_variants_render_the_same_empty_state() {
     }
 }
 
-// ── tccutil-rs info ─────────────────────────────────────────────────
-
 #[test]
 fn info_shows_macos_version_and_db_paths() {
     let (stdout, _stderr, success) = run_tcc(&["info"]);
@@ -91,13 +85,10 @@ fn info_shows_macos_version_and_db_paths() {
     assert!(stdout.contains("SIP status:"), "should show SIP status");
 }
 
-// ── Error cases ──────────────────────────────────────────────────────
-
 #[test]
 fn no_subcommand_prints_help_and_fails() {
     let (_stdout, stderr, success) = run_tcc(&[]);
     assert!(!success, "tccutil-rs with no args should fail");
-    // clap prints usage to stderr
     assert!(
         stderr.contains("Usage") || stderr.contains("usage"),
         "should print usage info"
@@ -157,7 +148,6 @@ fn list_json_mode_returns_valid_json() {
 
 #[test]
 fn grant_json_force_unknown_service_still_errors() {
-    // Sanity: unknown service fails before schema; envelope stays structured.
     let (stdout, stderr, success) = run_tcc(&[
         "grant",
         "DefinitelyNotARealService",

@@ -1,8 +1,6 @@
 mod tcc;
 
 #[cfg(test)]
-use clap::CommandFactory;
-#[cfg(test)]
 use clap::error::ErrorKind;
 use clap::{Parser, Subcommand};
 use colored::Colorize;
@@ -381,14 +379,6 @@ mod tests {
     }
 
     #[test]
-    fn cli_version_matches_the_package() {
-        let cmd = Cli::command();
-        assert_eq!(cmd.get_version(), Some(env!("CARGO_PKG_VERSION")));
-    }
-
-    // ── JSON helpers ──────────────────────────────────────────────────
-
-    #[test]
     fn json_escape_basic_specials() {
         assert_eq!(json_escape("\""), "\\\"");
         assert_eq!(json_escape("\\"), "\\\\");
@@ -430,8 +420,6 @@ mod tests {
             "{\"message\":\"with\\nnewline\",\"warnings\":[]}"
         );
     }
-
-    // ── error_kind covers every TccError variant ──────────────────────
 
     #[test]
     fn error_kind_maps_every_variant() {

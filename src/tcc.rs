@@ -437,13 +437,11 @@ impl TccDb {
             return Ok(input.to_string());
         }
         let input_lower = input.to_lowercase();
-        // Exact display name match (case-insensitive)
         for (key, display) in SERVICE_MAP.iter() {
             if display.to_lowercase() == input_lower {
                 return Ok(key.to_string());
             }
         }
-        // Partial display name match — collect all, error if ambiguous
         let partial_matches: Vec<_> = SERVICE_MAP
             .iter()
             .filter(|(_, display)| display.to_lowercase().contains(&input_lower))
@@ -498,14 +496,13 @@ impl TccDb {
         }
     }
 
-    /// Live system TCC.db path — writes here always require root.
+    /// Writes to the live system TCC.db always require root.
     pub const LIVE_SYSTEM_DB: &'static str = "/Library/Application Support/com.apple.TCC/TCC.db";
 
     fn path_requires_root(path: &Path) -> bool {
         path == Path::new(Self::LIVE_SYSTEM_DB) && !nix_is_root()
     }
 
-    /// Check if root is needed and we don't have it
     fn check_root_for_write(
         &self,
         service_key: &str,
@@ -561,7 +558,7 @@ impl TccDb {
             Ok(None)
         } else if allow_unknown {
             Ok(Some(format!(
-                "Unknown TCC database schema (digest: {}). Proceeding because --force was set — results may vary.",
+                "Unknown TCC database schema (digest: {}). Proceeding because --force was set. Results may vary.",
                 short
             )))
         } else {
@@ -961,7 +958,7 @@ impl TccDb {
     pub fn info(&self) -> Vec<String> {
         let mut lines = Vec::new();
 
-        // macOS version — use absolute path for defensive coding
+        // Use system binaries rather than PATH overrides.
         let macos_ver = Command::new("/usr/bin/sw_vers")
             .arg("-productVersion")
             .output()
@@ -969,7 +966,6 @@ impl TccDb {
             .unwrap_or_else(|_| "unknown".to_string());
         lines.push(format!("macOS version: {}", macos_ver));
 
-        // SIP status — use absolute path for defensive coding
         let sip = Command::new("/usr/bin/csrutil")
             .arg("status")
             .output()
@@ -1034,10 +1030,8 @@ pub fn nix_is_root() -> bool {
     unsafe { libc::geteuid() == 0 }
 }
 
-/// Truncate a client path to just the binary name
 pub fn compact_client(client: &str) -> String {
     if client.starts_with('/') {
-        // It's a path — extract just the filename
         std::path::Path::new(client)
             .file_name()
             .map(|f| f.to_string_lossy().to_string())
@@ -1060,8 +1054,6 @@ pub fn auth_value_display(value: i32) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    // ── Service name mapping ──────────────────────────────────────────
 
     #[test]
     fn known_service_keys_resolve_to_human_names() {
@@ -1104,8 +1096,6 @@ mod tests {
         assert_eq!(TccDb::service_display_name("FooBar"), "FooBar");
     }
 
-    // ── Auth value display ────────────────────────────────────────────
-
     #[test]
     fn auth_values_have_stable_display_names() {
         for (value, expected) in [
@@ -1119,8 +1109,6 @@ mod tests {
             assert_eq!(auth_value_display(value), expected);
         }
     }
-
-    // ── DB open authorization hint mapping ───────────────────────────
 
     #[test]
     fn db_open_auth_denied_on_user_tcc_db_includes_fda_hint() {
@@ -1186,8 +1174,6 @@ mod tests {
         assert!(!rendered.contains("Full Disk Access"));
     }
 
-    // ── Compact path display ──────────────────────────────────────────
-
     #[test]
     fn compact_client_extracts_binary_name_from_path() {
         assert_eq!(compact_client("/usr/local/bin/my-tool"), "my-tool");
@@ -1208,8 +1194,6 @@ mod tests {
         // Edge case: root path "/"
         assert_eq!(compact_client("/"), "/");
     }
-
-    // ── Client/service filtering (partial match via list) ─────────────
 
     fn seed_entry(path: &Path, service: &str, client: &str, auth_value: i32) {
         let conn = Connection::open(path).expect("open seed db");
@@ -1250,8 +1234,6 @@ mod tests {
         assert_eq!(filtered.len(), 1);
         assert_eq!(filtered[0].service_raw, "kTCCServiceCamera");
     }
-
-    // ── list error semantics (all-fail vs partial-fail) ───────────────
 
     #[test]
     fn list_returns_err_when_every_targeted_db_fails_to_read() {
@@ -1366,8 +1348,6 @@ mod tests {
         assert!(filtered.is_empty());
     }
 
-    // ── Format timestamp ──────────────────────────────────────────────
-
     #[test]
     fn format_timestamp_zero_returns_na() {
         assert_eq!(TccDb::format_timestamp(0), "N/A");
@@ -1375,15 +1355,14 @@ mod tests {
 
     #[test]
     fn format_timestamp_large_unix_value() {
-        // A recent Unix timestamp should produce a valid date
         let result = TccDb::format_timestamp(1_700_000_000);
         assert!(result.contains("2023"), "Expected 2023 in: {}", result);
     }
 
     #[test]
     fn format_timestamp_coredata_value() {
-        // CoreData timestamp (seconds since 2001-01-01) — small value
-        // 700_000_000 + 978_307_200 = 1_678_307_200 → 2023
+        // CoreData counts seconds from 2001-01-01.
+        // 700_000_000 + 978_307_200 = 1_678_307_200, which is in 2023.
         let result = TccDb::format_timestamp(700_000_000);
         assert!(
             result.contains("2023") || result.contains("2024"),
@@ -1391,8 +1370,6 @@ mod tests {
             result
         );
     }
-
-    // ── Resolve service name ──────────────────────────────────────────
 
     fn make_test_db() -> TccDb {
         TccDb::with_paths(
@@ -1457,8 +1434,6 @@ mod tests {
         );
     }
 
-    // ── Write operation tests (temp DB) ───────────────────────────────
-
     fn make_temp_tcc_db() -> (tempfile::TempDir, TccDb) {
         let dir = tempfile::tempdir().expect("failed to create temp dir");
         let db_path = dir.path().join("TCC.db");
@@ -1490,9 +1465,10 @@ mod tests {
     #[test]
     fn grant_inserts_entry() {
         let (_dir, db) = make_temp_tcc_db();
-        let result = db.grant("Camera", "com.example.app");
-        assert!(result.is_ok(), "grant failed: {:?}", result.err());
-        assert!(result.unwrap().message.contains("Granted"));
+        let result = db
+            .grant("Camera", "com.example.app")
+            .expect("grant should succeed");
+        assert!(result.message.contains("Granted"));
 
         let entries = db.list(None, None).unwrap().entries;
         assert_eq!(entries.len(), 1);
@@ -1538,8 +1514,8 @@ mod tests {
         let (_dir, db) = make_temp_tcc_db();
         db.grant("Camera", "com.example.app").unwrap();
 
-        let result = db.revoke("Camera", "com.example.app");
-        assert!(result.is_ok());
+        db.revoke("Camera", "com.example.app")
+            .expect("revoke should succeed");
 
         let entries = db.list(None, None).unwrap().entries;
         assert!(entries.is_empty());
@@ -1548,9 +1524,10 @@ mod tests {
     #[test]
     fn revoke_nonexistent_returns_not_found() {
         let (_dir, db) = make_temp_tcc_db();
-        let result = db.revoke("Camera", "com.nonexistent.app");
-        assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), TccError::NotFound { .. }));
+        let error = db
+            .revoke("Camera", "com.nonexistent.app")
+            .expect_err("missing client should fail");
+        assert!(matches!(error, TccError::NotFound { .. }));
     }
 
     #[test]
@@ -1580,14 +1557,14 @@ mod tests {
     #[test]
     fn enable_nonexistent_returns_not_found() {
         let (_dir, db) = make_temp_tcc_db();
-        let result = db.enable("Camera", "com.nonexistent.app");
-        assert!(result.is_err());
-        let err = result.unwrap_err();
-        assert!(matches!(err, TccError::NotFound { .. }));
-        if let TccError::NotFound { service, client } = err {
-            assert_eq!(service, "Camera");
-            assert_eq!(client, "com.nonexistent.app");
-        }
+        let err = db
+            .enable("Camera", "com.nonexistent.app")
+            .expect_err("missing client should fail");
+        let TccError::NotFound { service, client } = err else {
+            panic!("expected NotFound, got {err:?}");
+        };
+        assert_eq!(service, "Camera");
+        assert_eq!(client, "com.nonexistent.app");
         // Remediation lives in Display, not the structured service field.
         let rendered = TccError::NotFound {
             service: "Camera".into(),
@@ -1661,8 +1638,6 @@ mod tests {
         assert_eq!(db.user_db_path, PathBuf::from("/tmp/user.db"));
         assert_eq!(db.system_db_path, PathBuf::from("/tmp/system.db"));
     }
-
-    // ── Write routing (user vs system DB) ─────────────────────────────
 
     fn make_dual_temp_tcc_db(target: DbTarget) -> (tempfile::TempDir, TccDb) {
         let dir = tempfile::tempdir().expect("tempdir");
@@ -1786,10 +1761,8 @@ mod tests {
 
     #[test]
     fn default_reset_deletes_both_temp_dbs_without_live_system() {
-        // Temp system paths do not require root; Default reset must clear both.
-        // (Do not probe the live system TCC.db — CI runners may have a readable
-        // empty system DB, which would make a live-path preflight succeed and
-        // only delete the user fixture.)
+        // Do not probe the live system TCC.db. A readable empty database on CI
+        // would let preflight succeed and leave only the user fixture deleted.
         let (_dir, db) = make_dual_temp_tcc_db(DbTarget::Default);
         seed_entry(&db.user_db_path, "kTCCServiceCamera", "com.example.user", 2);
         seed_entry(
