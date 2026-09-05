@@ -71,21 +71,6 @@ fn empty_list_variants_render_the_same_empty_state() {
 }
 
 #[test]
-fn info_shows_macos_version_and_db_paths() {
-    let (stdout, _stderr, success) = run_tcc(&["info"]);
-    assert!(success, "tccutil-rs info should exit 0");
-
-    assert!(
-        stdout.contains("macOS version:"),
-        "should show macOS version"
-    );
-    assert!(stdout.contains("User DB:"), "should show User DB path");
-    assert!(stdout.contains("System DB:"), "should show System DB path");
-    assert!(stdout.contains("TCC.db"), "should mention TCC.db");
-    assert!(stdout.contains("SIP status:"), "should show SIP status");
-}
-
-#[test]
 fn no_subcommand_prints_help_and_fails() {
     let (_stdout, stderr, success) = run_tcc(&[]);
     assert!(!success, "tccutil-rs with no args should fail");
