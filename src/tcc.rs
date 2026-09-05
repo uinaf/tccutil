@@ -277,7 +277,8 @@ impl TccDb {
         if ts == 0 {
             return "N/A".to_string();
         }
-        // macOS TCC uses CoreData timestamps (seconds since 2001-01-01) or Unix timestamps.
+        // Keep reading legacy rows written by earlier releases with the 2001 epoch.
+        // New writes use the access table's Unix epoch.
         let unix_ts = if ts < 1_000_000_000 {
             ts + 978_307_200
         } else {
@@ -588,8 +589,8 @@ impl TccDb {
 
         let (conn, warning) = self.open_writable(&service_key)?;
 
-        let client_type: i32 = if client.starts_with('/') { 0 } else { 1 };
-        let now = chrono::Utc::now().timestamp() - 978_307_200;
+        let client_type: i32 = if client.starts_with('/') { 1 } else { 0 };
+        let now = chrono::Utc::now().timestamp();
         let sql = "INSERT OR REPLACE INTO access \
                    (service, client, client_type, auth_value, auth_reason, auth_version, flags, last_modified) \
                    VALUES (?1, ?2, ?3, 2, 0, 1, 0, ?4)";
@@ -656,7 +657,7 @@ impl TccDb {
 
         let (conn, warning) = self.open_writable(&service_key)?;
 
-        let now = chrono::Utc::now().timestamp() - 978_307_200;
+        let now = chrono::Utc::now().timestamp();
         let updated = conn
             .execute(
                 "UPDATE access SET auth_value = 2, last_modified = ?3 WHERE service = ?1 AND client = ?2",
@@ -692,7 +693,7 @@ impl TccDb {
 
         let (conn, warning) = self.open_writable(&service_key)?;
 
-        let now = chrono::Utc::now().timestamp() - 978_307_200;
+        let now = chrono::Utc::now().timestamp();
         let updated = conn
             .execute(
                 "UPDATE access SET auth_value = 0, last_modified = ?3 WHERE service = ?1 AND client = ?2",
@@ -1199,7 +1200,7 @@ mod tests {
         let conn = Connection::open(path).expect("open seed db");
         conn.execute(
             "INSERT INTO access (service, client, client_type, auth_value, auth_reason, auth_version, flags, last_modified)
-             VALUES (?1, ?2, 1, ?3, 0, 1, 0, 0)",
+             VALUES (?1, ?2, 0, ?3, 0, 1, 0, 0)",
             rusqlite::params![service, client, auth_value],
         )
         .expect("seed entry");
@@ -1463,6 +1464,24 @@ mod tests {
     }
 
     #[test]
+    fn info_shows_macos_version_and_db_paths() {
+        let (_dir, db) = make_temp_tcc_db();
+        let stdout = db.info().join("\n");
+        assert!(stdout.contains("Readable: yes"));
+        assert!(stdout.contains("Writable: yes"));
+        assert!(stdout.contains("Schema digest:"));
+
+        assert!(
+            stdout.contains("macOS version:"),
+            "should show macOS version"
+        );
+        assert!(stdout.contains("User DB:"), "should show User DB path");
+        assert!(stdout.contains("System DB:"), "should show System DB path");
+        assert!(stdout.contains("TCC.db"), "should mention TCC.db");
+        assert!(stdout.contains("SIP status:"), "should show SIP status");
+    }
+
+    #[test]
     fn grant_inserts_entry() {
         let (_dir, db) = make_temp_tcc_db();
         let result = db
@@ -1490,7 +1509,7 @@ mod tests {
                 |row| row.get(0),
             )
             .unwrap();
-        assert_eq!(client_type, 0, "Path client should have client_type 0");
+        assert_eq!(client_type, 1, "Path client should have client_type 1");
     }
 
     #[test]
@@ -1506,7 +1525,94 @@ mod tests {
                 |row| row.get(0),
             )
             .unwrap();
-        assert_eq!(client_type, 1, "Bundle ID should have client_type 1");
+        assert_eq!(client_type, 0, "Bundle ID should have client_type 0");
+    }
+
+    #[test]
+    fn grant_replaces_correctly_typed_denied_rows() {
+        for (client, client_type) in [("com.example.app", 0), ("/usr/bin/test", 1)] {
+            let (_dir, db) = make_temp_tcc_db();
+            let conn = Connection::open(&db.user_db_path).unwrap();
+            conn.execute(
+                "INSERT INTO access (service, client, client_type, auth_value)
+                 VALUES ('kTCCServiceCamera', ?1, ?2, 0)",
+                rusqlite::params![client, client_type],
+            )
+            .unwrap();
+
+            db.grant("Camera", client).unwrap();
+
+            let (count, stored_type, auth_value): (i32, i32, i32) = conn
+                .query_row(
+                    "SELECT COUNT(*), client_type, auth_value FROM access WHERE client = ?1",
+                    [client],
+                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+                )
+                .unwrap();
+            assert_eq!((count, stored_type, auth_value), (1, client_type, 2));
+        }
+    }
+
+    fn assert_mutation_stores_unix_timestamp(operation: &str) {
+        let (_dir, db) = make_temp_tcc_db();
+        let conn = Connection::open(&db.user_db_path).unwrap();
+        // Seed the same Unix expression used by the access-table schema.
+        conn.execute_batch(
+            "INSERT INTO access (service, client, client_type, auth_value, last_modified)
+             VALUES ('kTCCServiceCamera', 'com.example.os', 0, 2,
+                     CAST(strftime('%s','now') AS INTEGER) - 60);",
+        )
+        .unwrap();
+
+        if operation != "grant" {
+            seed_entry(&db.user_db_path, "kTCCServiceCamera", "com.example.app", 0);
+        }
+        // A stale value ensures each UPDATE must actually refresh the timestamp.
+        conn.execute(
+            "UPDATE access SET last_modified = 1 WHERE client = 'com.example.app'",
+            [],
+        )
+        .unwrap();
+        let before = chrono::Utc::now().timestamp();
+        match operation {
+            "grant" => db.grant("Camera", "com.example.app"),
+            "disable" => db.disable("Camera", "com.example.app"),
+            "enable" => db.enable("Camera", "com.example.app"),
+            _ => unreachable!(),
+        }
+        .unwrap();
+        let after = chrono::Utc::now().timestamp();
+        let stored: i64 = conn
+            .query_row(
+                "SELECT last_modified FROM access WHERE client = 'com.example.app'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert!((before..=after).contains(&stored), "{operation}: {stored}");
+        let oldest: String = conn
+            .query_row(
+                "SELECT client FROM access ORDER BY last_modified LIMIT 1",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(oldest, "com.example.os", "{operation}");
+    }
+
+    #[test]
+    fn grant_stores_unix_timestamp() {
+        assert_mutation_stores_unix_timestamp("grant");
+    }
+
+    #[test]
+    fn enable_stores_unix_timestamp() {
+        assert_mutation_stores_unix_timestamp("enable");
+    }
+
+    #[test]
+    fn disable_stores_unix_timestamp() {
+        assert_mutation_stores_unix_timestamp("disable");
     }
 
     #[test]
